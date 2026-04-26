@@ -12,11 +12,12 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle 
 } from "@/components/ui/alert-dialog";
 import { 
-  ArrowLeft, Crown, Clock, Trash2, RotateCcw, Copy, Calendar, Mail, User, Shield, BarChart3
+  ArrowLeft, Crown, Clock, Trash2, RotateCcw, Copy, Calendar, Mail, User, Shield, BarChart3, Activity, Pencil
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { EditUserDialog } from "@/components/EditUserDialog";
 
 export default function UserDetail({ params }: { params: { id: string } }) {
   const { id } = params;
@@ -30,6 +31,7 @@ export default function UserDetail({ params }: { params: { id: string } }) {
 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
   const user = useMemo(() => users?.find(u => u.id === id), [users, id]);
   
@@ -110,6 +112,9 @@ export default function UserDetail({ params }: { params: { id: string } }) {
             <ArrowLeft className="h-4 w-4" /> Back to Users
           </Button>
         </Link>
+        <Button onClick={() => setEditOpen(true)} className="gap-2">
+          <Pencil className="h-4 w-4" /> Edit User
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -299,6 +304,13 @@ export default function UserDetail({ params }: { params: { id: string } }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit Dialog */}
+      <EditUserDialog
+        user={user || null}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+      />
     </div>
   );
 }

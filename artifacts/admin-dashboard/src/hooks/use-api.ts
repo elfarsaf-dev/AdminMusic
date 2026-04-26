@@ -8,12 +8,13 @@ export type UserProfile = Record<string, unknown> & {
   username?: string;
   full_name?: string;
   avatar_url?: string;
+  api_key?: string;
   created_at?: string;
   updated_at?: string;
 };
 
 export type UsageEvent = Record<string, unknown> & {
-  id?: string;
+  id?: string | number;
   user_id: string;
   action?: string;
   type?: string;
@@ -48,6 +49,27 @@ export function useSetPremium() {
       queryClient.setQueryData(["users"], (old: UserProfile[] | undefined) => {
         if (!old) return old;
         return old.map(u => u.id === variables.user_id ? { ...u, is_premium: variables.is_premium } : u);
+      });
+    },
+  });
+}
+
+export function useUpdateUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { user_id: string; fields: Record<string, unknown> }) =>
+      fetchApi<{ message: string; user?: UserProfile }>("/admin/update-user", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: (res, variables) => {
+      queryClient.setQueryData(["users"], (old: UserProfile[] | undefined) => {
+        if (!old) return old;
+        return old.map(u => {
+          if (u.id !== variables.user_id) return u;
+          if (res?.user) return { ...u, ...res.user };
+          return { ...u, ...variables.fields };
+        });
       });
     },
   });

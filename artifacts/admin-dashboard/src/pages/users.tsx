@@ -17,11 +17,12 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle 
 } from "@/components/ui/alert-dialog";
 import { 
-  Search, MoreHorizontal, Crown, Trash2, RotateCcw, Copy, Activity, Check, ArrowUpDown 
+  Search, MoreHorizontal, Crown, Trash2, RotateCcw, Copy, Activity, ArrowUpDown, Pencil 
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
+import { EditUserDialog } from "@/components/EditUserDialog";
 
 export default function Users() {
   const { data: users, isLoading: usersLoading } = useUsers();
@@ -36,6 +37,7 @@ export default function Users() {
   
   const [deleteDialog, setDeleteDialog] = useState<{open: boolean, user: UserProfile | null}>({ open: false, user: null });
   const [resetDialog, setResetDialog] = useState<{open: boolean, user: UserProfile | null}>({ open: false, user: null });
+  const [editDialog, setEditDialog] = useState<{open: boolean, user: UserProfile | null}>({ open: false, user: null });
   
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -358,13 +360,16 @@ export default function Users() {
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-[160px]">
+                      <DropdownMenuContent align="end" className="w-[170px]">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <Link href={`/users/${user.id}`}>
                           <DropdownMenuItem className="cursor-pointer">
                             <Activity className="mr-2 h-4 w-4" /> View Details
                           </DropdownMenuItem>
                         </Link>
+                        <DropdownMenuItem className="cursor-pointer" onClick={() => setEditDialog({ open: true, user })}>
+                          <Pencil className="mr-2 h-4 w-4" /> Edit User
+                        </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem 
                           className="cursor-pointer"
@@ -411,6 +416,13 @@ export default function Users() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit Dialog */}
+      <EditUserDialog
+        user={editDialog.user}
+        open={editDialog.open}
+        onOpenChange={(open) => setEditDialog({ open, user: open ? editDialog.user : null })}
+      />
 
       {/* Reset Dialog */}
       <AlertDialog open={resetDialog.open} onOpenChange={(open) => !open && setResetDialog({ open: false, user: null })}>

@@ -43,10 +43,12 @@ export default function Usage() {
     if (search) {
       const q = search.toLowerCase();
       result = result.filter(u => {
-        const user = userMap[u.user_id];
+        const user = userMap[String(u.user_id)];
         const email = (user?.email as string || "").toLowerCase();
         const type = ((u.type as string) || (u.action as string) || "").toLowerCase();
-        return email.includes(q) || type.includes(q) || u.user_id.toLowerCase().includes(q) || (u.id as string)?.toLowerCase().includes(q);
+        const userId = String(u.user_id ?? "").toLowerCase();
+        const eventId = String(u.id ?? "").toLowerCase();
+        return email.includes(q) || type.includes(q) || userId.includes(q) || eventId.includes(q);
       });
     }
 
@@ -63,7 +65,8 @@ export default function Usage() {
     const counts: Record<string, { total: number, lastEvent: string | null, eventTypes: Set<string> }> = {};
     
     usage.forEach((u) => {
-      const uid = u.user_id;
+      const uid = String(u.user_id ?? "");
+      if (!uid) return;
       if (!counts[uid]) {
         counts[uid] = { total: 0, lastEvent: null, eventTypes: new Set() };
       }
@@ -168,14 +171,16 @@ export default function Usage() {
                   </TableRow>
                 ) : (
                   filteredEvents.map((event, i) => {
-                    const user = userMap[event.user_id];
+                    const userIdStr = String(event.user_id ?? "");
+                    const user = userMap[userIdStr];
+                    const eventIdStr = String(event.id ?? "");
                     return (
-                      <TableRow key={(event.id as string) || i}>
+                      <TableRow key={eventIdStr || i}>
                         <TableCell className="font-mono text-xs text-muted-foreground">
-                          {(event.id as string)?.substring(0, 8) || '-'}
+                          {eventIdStr ? eventIdStr.substring(0, 8) : '-'}
                         </TableCell>
                         <TableCell>
-                          <Link href={`/users/${event.user_id}`} className="flex items-center gap-2 hover:underline group">
+                          <Link href={`/users/${userIdStr}`} className="flex items-center gap-2 hover:underline group">
                             <Avatar className="h-6 w-6 border border-border">
                               <AvatarImage src={user?.avatar_url as string} />
                               <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
@@ -183,7 +188,7 @@ export default function Usage() {
                               </AvatarFallback>
                             </Avatar>
                             <span className="text-sm font-medium">
-                              {(user?.full_name as string) || (user?.email as string) || event.user_id.substring(0,8)}
+                              {(user?.full_name as string) || (user?.email as string) || userIdStr.substring(0,8)}
                             </span>
                           </Link>
                         </TableCell>
@@ -252,7 +257,7 @@ export default function Usage() {
                           </Avatar>
                           <div className="flex flex-col">
                             <span className="font-medium text-sm group-hover:underline">
-                              {(group.user?.full_name as string) || (group.user?.username as string) || (group.user?.email as string) || group.id.substring(0,8)}
+                              {(group.user?.full_name as string) || (group.user?.username as string) || (group.user?.email as string) || String(group.id).substring(0,8)}
                             </span>
                             <span className="text-xs text-muted-foreground">
                               {group.user?.email as string || group.id}

@@ -104,6 +104,48 @@ export default {
     }
 
     // ============================
+    // BLOCK / UNBLOCK USER (by username)
+    // ============================
+    if (url.pathname === "/admin/block-user" && req.method === "POST") {
+      const { username, blocked } = await req.json()
+
+      if (!username || typeof blocked !== "boolean") {
+        return json({ error: "username (string) and blocked (boolean) are required" }, 400)
+      }
+
+      const encoded = encodeURIComponent(username)
+
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/mc_profiles?username=eq.${encoded}`,
+        {
+          method: "PATCH",
+          headers: {
+            apikey: SERVICE_KEY,
+            Authorization: `Bearer ${SERVICE_KEY}`,
+            "Content-Type": "application/json",
+            Prefer: "return=representation"
+          },
+          body: JSON.stringify({ blocked })
+        }
+      )
+
+      if (!res.ok) {
+        const errText = await res.text()
+        return json({ error: "Block update failed", detail: errText }, res.status)
+      }
+
+      const updated = await res.json()
+      if (!Array.isArray(updated) || updated.length === 0) {
+        return json({ error: `User '${username}' not found` }, 404)
+      }
+
+      return json({
+        message: blocked ? "User blocked" : "User unblocked",
+        user: updated[0]
+      })
+    }
+
+    // ============================
     // GET USAGE
     // ============================
     if (url.pathname === "/admin/usage") {

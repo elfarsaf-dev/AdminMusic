@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Link } from "wouter";
-import { useUsers, useUsage, useSetPremium, useDeleteUser, useResetUsage, UserProfile } from "@/hooks/use-api";
+import { useUsers, useUsage, useSetPremium, useDeleteUser, useResetUsage, useBlockUser, UserProfile } from "@/hooks/use-api";
 import { 
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
 } from "@/components/ui/table";
@@ -17,7 +17,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle 
 } from "@/components/ui/alert-dialog";
 import { 
-  Search, MoreHorizontal, Crown, Trash2, RotateCcw, Copy, Activity, ArrowUpDown, Pencil 
+  Search, MoreHorizontal, Crown, Trash2, RotateCcw, Copy, Activity, ArrowUpDown, Pencil, Ban, ShieldCheck 
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -30,9 +30,10 @@ export default function Users() {
   const setPremium = useSetPremium();
   const deleteUser = useDeleteUser();
   const resetUsage = useResetUsage();
+  const blockUser = useBlockUser();
 
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"all" | "premium" | "free">("all");
+  const [filter, setFilter] = useState<"all" | "premium" | "free" | "blocked">("all");
   const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc'|'desc'}>({ key: 'created_at', direction: 'desc' });
   
   const [deleteDialog, setDeleteDialog] = useState<{open: boolean, user: UserProfile | null}>({ open: false, user: null });
@@ -70,6 +71,8 @@ export default function Users() {
       result = result.filter(u => u.is_premium);
     } else if (filter === "free") {
       result = result.filter(u => !u.is_premium);
+    } else if (filter === "blocked") {
+      result = result.filter(u => u.blocked);
     }
 
     // Sort
@@ -175,6 +178,38 @@ export default function Users() {
     );
   };
 
+  const handleBlockToggle = async (user: UserProfile) => {
+    const username = user.username as string | undefined;
+    if (!username) {
+      toast.error("This user has no username, cannot block by username");
+      return;
+    }
+    const nextBlocked = !user.blocked;
+    try {
+      await blockUser.mutateAsync({ username, blocked: nextBlocked });
+      toast.success(nextBlocked ? `Blocked ${username}` : `Unblocked ${username}`);
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to update block status");
+    }
+  };
+
+  const handleBulkBlock = async (blocked: boolean) => {
+    const targets = filteredUsers.filter(u => selectedIds.has(u.id) && u.username);
+    const skipped = selectedIds.size - targets.length;
+    if (targets.length === 0) {
+      toast.error("None of the selected users have a username");
+      return;
+    }
+    toast.promise(
+      Promise.all(targets.map(u => blockUser.mutateAsync({ username: u.username as string, blocked }))),
+      {
+        loading: `${blocked ? "Blocking" : "Unblocking"} ${targets.length} users...`,
+        success: `${blocked ? "Blocked" : "Unblocked"} ${targets.length} users${skipped ? ` (${skipped} skipped, no username)` : ""}`,
+        error: `Failed to ${blocked ? "block" : "unblock"} some users`,
+      }
+    );
+  };
+
   const handleBulkDelete = async () => {
     const ids = Array.from(selectedIds);
     if (confirm(`Are you SURE you want to delete ${ids.length} users? This cannot be undone.`)) {
@@ -235,6 +270,14 @@ export default function Users() {
             >
               Free
             </Button>
+            <Button 
+              variant={filter === "blocked" ? "secondary" : "ghost"} 
+              size="sm" 
+              onClick={() => setFilter("blocked")}
+              className="h-7 text-destructive"
+            >
+              Blocked
+            </Button>
           </div>
         </div>
 
@@ -244,6 +287,8 @@ export default function Users() {
             <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => handleBulkPremium(true)}>Make Premium</Button>
             <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => handleBulkPremium(false)}>Make Free</Button>
             <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleBulkReset}>Reset Usage</Button>
+            <Button variant="outline" size="sm" className="h-7 text-xs text-destructive" onClick={() => handleBulkBlock(true)}>Block</Button>
+            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => handleBulkBlock(false)}>Unblock</Button>
             <Button variant="destructive" size="sm" className="h-7 text-xs ml-1" onClick={handleBulkDelete}>Delete</Button>
           </div>
         )}
@@ -343,6 +388,9 @@ export default function Users() {
                       ) : (
                         <Badge variant="outline" className="text-muted-foreground">Free</Badge>
                       )}
+                      {user.blocked && (
+                        <Badge variant="outline" className="border-destructive/50 text-destructive bg-destructive/10">Blocked</Badge>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>
@@ -380,6 +428,18 @@ export default function Users() {
                         </DropdownMenuItem>
                         <DropdownMenuItem className="cursor-pointer" onClick={() => setResetDialog({ open: true, user })}>
                           <RotateCcw className="mr-2 h-4 w-4" /> Reset Usage
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="cursor-pointer"
+                          disabled={!user.username || blockUser.isPending}
+                          onClick={() => handleBlockToggle(user)}
+                        >
+                          {user.blocked ? (
+                            <><ShieldCheck className="mr-2 h-4 w-4 text-primary" /> Unblock User</>
+                          ) : (
+                            <><Ban className="mr-2 h-4 w-4 text-destructive" /> Block User</>
+                          )}
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10" onClick={() => setDeleteDialog({ open: true, user })}>

@@ -4,6 +4,7 @@ import { fetchApi } from "@/lib/api";
 export type UserProfile = Record<string, unknown> & { 
   id: string; 
   is_premium?: boolean;
+  blocked?: boolean;
   email?: string;
   username?: string;
   full_name?: string;
@@ -70,6 +71,25 @@ export function useUpdateUser() {
           if (res?.user) return { ...u, ...res.user };
           return { ...u, ...variables.fields };
         });
+      });
+    },
+  });
+}
+
+export function useBlockUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { username: string; blocked: boolean }) =>
+      fetchApi<{ message: string; user?: UserProfile }>("/admin/block-user", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: (_, variables) => {
+      queryClient.setQueryData(["users"], (old: UserProfile[] | undefined) => {
+        if (!old) return old;
+        return old.map(u =>
+          u.username === variables.username ? { ...u, blocked: variables.blocked } : u
+        );
       });
     },
   });
